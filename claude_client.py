@@ -25,7 +25,7 @@ Respond with:
 2. The code fix (with filename and full code block)
 3. A concise PR title (max 72 chars)
 4. A PR description (markdown format, explain what changed and why)
-5. A git branch name (format: fix/{ticket_id}-short-description)
+5. A git branch name (format: fix/{ticket['id']}-short-description)
 
 Structure your response with clear section headers: ANALYSIS, CODE FIX, PR TITLE, PR DESCRIPTION, BRANCH NAME"""
 

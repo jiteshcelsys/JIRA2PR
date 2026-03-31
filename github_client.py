@@ -1,5 +1,5 @@
 import os
-from github import Github, GithubException
+from github import Github, Auth, GithubException
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -7,7 +7,7 @@ load_dotenv()
 
 def create_branch_and_pr(branch_name: str, pr_title: str, pr_description: str, code_fix: str) -> str:
     """Create a GitHub branch and open a PR with the code fix. Returns the PR URL."""
-    gh = Github(os.environ["GITHUB_TOKEN"])
+    gh = Github(auth=Auth.Token(os.environ["GITHUB_TOKEN"]))
     repo = gh.get_repo(os.environ["GITHUB_REPO"])
     base_branch = os.environ.get("GITHUB_BASE_BRANCH", "main")
 
