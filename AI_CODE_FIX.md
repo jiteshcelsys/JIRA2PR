@@ -1,17 +1,19 @@
-### `src/data_processor.py`
+### `src/utils/data_processor.py`
 ```python
 """
-data_processor.py
+Data processing utilities module.
 
-Refactored data processing module with improved structure,
-type hints, error handling, and docstrings.
+Provides validated, type-safe helpers for common data transformation
+and validation operations used throughout the application.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
-from typing import Any
+from datetime import datetime
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -25,244 +27,208 @@ class ValidationError(DataProcessorError):
 
 
 class TransformationError(DataProcessorError):
-    """Raised when a data transformation step fails."""
+    """Raised when a data transformation operation fails."""
 
 
 @dataclass
 class ProcessingResult:
-    """Encapsulates the outcome of a processing pipeline run.
+    """Encapsulates the outcome of a processing operation."""
 
-    Attributes:
-        records:  Successfully processed records.
-        errors:   Per-record error messages keyed by record index.
-        total:    Total number of input records attempted.
-    """
+    success: bool
+    data: Any = None
+    errors: list[str] = field(default_factory=list)
+    processed_at: datetime = field(default_factory=datetime.utcnow)
 
-    records: list[dict[str, Any]] = field(default_factory=list)
-    errors: dict[int, str] = field(default_factory=dict)
-    total: int = 0
+    def add_error(self, message: str) -> None:
+        """Append an error message and mark result as failed."""
+        self.errors.append(message)
+        self.success = False
 
-    # ------------------------------------------------------------------
-    # Derived helpers
-    # ------------------------------------------------------------------
-
-    @property
-    def success_count(self) -> int:
-        """Number of records processed without error."""
-        return len(self.records)
-
-    @property
-    def error_count(self) -> int:
-        """Number of records that failed processing."""
-        return len(self.errors)
-
-    @property
-    def success_rate(self) -> float:
-        """Fraction of records processed successfully (0.0 – 1.0)."""
-        if self.total == 0:
-            return 0.0
-        return self.success_count / self.total
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize result to a plain dictionary."""
+        return {
+            "success": self.success,
+            "data": self.data,
+            "errors": self.errors,
+            "processed_at": self.processed_at.isoformat(),
+        }
 
 
 class DataProcessor:
-    """Validates, normalises, and transforms tabular records.
+    """
+    Handles validation and transformation of input data.
 
-    Parameters
-    ----------
-    required_fields:
-        Field names that *must* be present on every record.
-    allowed_statuses:
-        Whitelist of acceptable values for the ``status`` field.
-        Defaults to ``{"active", "inactive", "pending"}``.
+    Example
+    -------
+    >>> processor = DataProcessor(strict_mode=True)
+    >>> result = processor.process({"name": "Alice", "age": 30})
+    >>> result.success
+    True
     """
 
-    DEFAULT_STATUSES: frozenset[str] = frozenset({"active", "inactive", "pending"})
+    # Compile once at class level for performance
+    _EMAIL_RE = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+    _SAFE_STRING_RE = re.compile(r"^[\w\s\-.,@]+$")
 
-    def __init__(
-        self,
-        required_fields: list[str] | None = None,
-        allowed_statuses: set[str] | None = None,
-    ) -> None:
-        self.required_fields: list[str] = required_fields or ["id", "name", "status"]
-        self.allowed_statuses: frozenset[str] = (
-            frozenset(allowed_statuses) if allowed_statuses else self.DEFAULT_STATUSES
-        )
+    def __init__(self, strict_mode: bool = False) -> None:
+        """
+        Parameters
+        ----------
+        strict_mode:
+            When *True*, any validation warning is treated as an error.
+        """
+        self.strict_mode = strict_mode
+        self._processed_count: int = 0
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def process(self, data: list[dict[str, Any]]) -> ProcessingResult:
-        """Run the full validation → normalisation → transformation pipeline.
+    def process(self, data: dict[str, Any]) -> ProcessingResult:
+        """
+        Validate and transform *data*.
 
         Parameters
         ----------
         data:
-            List of raw record dictionaries.
+            Arbitrary key/value payload to process.
 
         Returns
         -------
         ProcessingResult
-            Aggregated result containing successful records and any errors.
-
-        Raises
-        ------
-        DataProcessorError
-            If *data* is not a list.
+            Always returns a result object; never raises on bad input.
         """
-        if not isinstance(data, list):
-            raise DataProcessorError(
-                f"Expected a list of records, got {type(data).__name__!r}."
-            )
+        result = ProcessingResult(success=True)
 
-        result = ProcessingResult(total=len(data))
+        try:
+            self._validate(data, result)
+            if result.success:
+                result.data = self._transform(data)
+                self._processed_count += 1
+                logger.info(
+                    "Record processed successfully (total=%d).",
+                    self._processed_count,
+                )
+        except TransformationError as exc:
+            result.add_error(f"Transformation failed: {exc}")
+            logger.error("Transformation error for data=%r: %s", data, exc)
+        except Exception as exc:  # pragma: no cover – unexpected path
+            result.add_error(f"Unexpected error: {exc}")
+            logger.exception("Unexpected error while processing data=%r", data)
 
-        for idx, record in enumerate(data):
-            try:
-                validated = self.validate(record)
-                normalised = self.normalise(validated)
-                transformed = self.transform(normalised)
-                result.records.append(transformed)
-            except (ValidationError, TransformationError) as exc:
-                logger.warning("Record %d skipped: %s", idx, exc)
-                result.errors[idx] = str(exc)
-
-        logger.info(
-            "Processing complete – %d/%d records succeeded (%.1f%%).",
-            result.success_count,
-            result.total,
-            result.success_rate * 100,
-        )
         return result
 
-    def validate(self, record: dict[str, Any]) -> dict[str, Any]:
-        """Assert that *record* contains all required fields with non-empty values.
+    def process_batch(
+        self, records: list[dict[str, Any]]
+    ) -> list[ProcessingResult]:
+        """
+        Process a collection of records.
 
         Parameters
         ----------
-        record:
-            A single raw record dictionary.
+        records:
+            List of payloads forwarded individually to :meth:`process`.
 
         Returns
         -------
-        dict[str, Any]
-            The same record, unchanged, if validation passes.
-
-        Raises
-        ------
-        ValidationError
-            On missing fields, empty values, or an invalid ``status``.
+        list[ProcessingResult]
+            One result per input record, preserving order.
         """
-        if not isinstance(record, dict):
-            raise ValidationError(
-                f"Record must be a dict, got {type(record).__name__!r}."
+        if not isinstance(records, list):
+            raise TypeError(f"Expected list, got {type(records).__name__!r}")
+
+        logger.info("Starting batch processing of %d records.", len(records))
+        results = [self.process(record) for record in records]
+        failed = sum(1 for r in results if not r.success)
+        logger.info(
+            "Batch complete: %d succeeded, %d failed.",
+            len(results) - failed,
+            failed,
+        )
+        return results
+
+    @property
+    def processed_count(self) -> int:
+        """Total number of successfully processed records."""
+        return self._processed_count
+
+    # ------------------------------------------------------------------
+    # Validation helpers
+    # ------------------------------------------------------------------
+
+    def _validate(self, data: dict[str, Any], result: ProcessingResult) -> None:
+        """Populate *result* with any validation errors found in *data*."""
+        if not isinstance(data, dict):
+            raise ValidationError(f"Expected dict, got {type(data).__name__!r}")
+
+        if not data:
+            result.add_error("Payload must not be empty.")
+            return
+
+        self._validate_required_fields(data, result)
+        self._validate_field_types(data, result)
+        self._validate_email(data, result)
+        self._validate_age(data, result)
+        self._validate_name(data, result)
+
+    def _validate_required_fields(
+        self, data: dict[str, Any], result: ProcessingResult
+    ) -> None:
+        required = {"name", "age"}
+        missing = required - data.keys()
+        for field_name in sorted(missing):
+            result.add_error(f"Missing required field: '{field_name}'.")
+
+    def _validate_field_types(
+        self, data: dict[str, Any], result: ProcessingResult
+    ) -> None:
+        if "age" in data and not isinstance(data["age"], int):
+            result.add_error(
+                f"Field 'age' must be an integer, got {type(data['age']).__name__!r}."
+            )
+        if "name" in data and not isinstance(data["name"], str):
+            result.add_error(
+                f"Field 'name' must be a string, got {type(data['name']).__name__!r}."
             )
 
-        for field_name in self.required_fields:
-            if field_name not in record:
-                raise ValidationError(f"Missing required field: {field_name!r}.")
-            if record[field_name] is None or str(record[field_name]).strip() == "":
-                raise ValidationError(
-                    f"Field {field_name!r} must not be empty or None."
-                )
+    def _validate_email(
+        self, data: dict[str, Any], result: ProcessingResult
+    ) -> None:
+        email: Optional[str] = data.get("email")
+        if email is None:
+            return
+        if not isinstance(email, str) or not self._EMAIL_RE.match(email):
+            result.add_error(f"Invalid email address: {email!r}.")
 
-        status = str(record.get("status", "")).strip().lower()
-        if status not in self.allowed_statuses:
-            raise ValidationError(
-                f"Invalid status {status!r}. "
-                f"Allowed values: {sorted(self.allowed_statuses)}."
-            )
-
-        return record
-
-    def normalise(self, record: dict[str, Any]) -> dict[str, Any]:
-        """Standardise string fields: strip whitespace, lowercase ``status``.
-
-        Parameters
-        ----------
-        record:
-            A validated record dictionary.
-
-        Returns
-        -------
-        dict[str, Any]
-            A *new* dictionary with normalised values.
-        """
-        normalised: dict[str, Any] = {}
-        for key, value in record.items():
-            if isinstance(value, str):
-                normalised[key] = value.strip()
+    def _validate_age(
+        self, data: dict[str, Any], result: ProcessingResult
+    ) -> None:
+        age = data.get("age")
+        if not isinstance(age, int):
+            return  # type error already reported
+        if age < 0:
+            result.add_error("Field 'age' must be non-negative.")
+        elif age > 150:
+            message = "Field 'age' exceeds maximum allowed value (150)."
+            if self.strict_mode:
+                result.add_error(message)
             else:
-                normalised[key] = value
+                logger.warning(message)
 
-        if "status" in normalised and isinstance(normalised["status"], str):
-            normalised["status"] = normalised["status"].lower()
+    def _validate_name(
+        self, data: dict[str, Any], result: ProcessingResult
+    ) -> None:
+        name = data.get("name")
+        if not isinstance(name, str):
+            return  # type error already reported
+        stripped = name.strip()
+        if not stripped:
+            result.add_error("Field 'name' must not be blank.")
+        elif not self._SAFE_STRING_RE.match(stripped):
+            result.add_error(
+                f"Field 'name' contains disallowed characters: {name!r}."
+            )
 
-        return normalised
-
-    def transform(self, record: dict[str, Any]) -> dict[str, Any]:
-        """Apply business-level transformations to a normalised record.
-
-        Current transformations
-        -----------------------
-        * ``name`` → title-cased.
-        * ``id``   → coerced to ``int`` when possible.
-        * ``tags`` → deduplicated list (if present).
-
-        Parameters
-        ----------
-        record:
-            A normalised record dictionary.
-
-        Returns
-        -------
-        dict[str, Any]
-            Transformed record.
-
-        Raises
-        ------
-        TransformationError
-            If a required transformation cannot be applied.
-        """
-        transformed = dict(record)
-
-        # Coerce id to int
-        try:
-            transformed["id"] = int(transformed["id"])
-        except (ValueError, TypeError) as exc:
-            raise TransformationError(
-                f"Cannot coerce id={transformed['id']!r} to int."
-            ) from exc
-
-        # Title-case name
-        if "name" in transformed and isinstance(transformed["name"], str):
-            transformed["name"] = transformed["name"].title()
-
-        # Deduplicate tags while preserving order
-        if "tags" in transformed and isinstance(transformed["tags"], list):
-            seen: set[Any] = set()
-            deduped: list[Any] = []
-            for tag in transformed["tags"]:
-                if tag not in seen:
-                    seen.add(tag)
-                    deduped.append(tag)
-            transformed["tags"] = deduped
-
-        return transformed
-```
-
----
-
-### `tests/__init__.py`
-```python
-```
-
----
-
-### `tests/test_data_processor.py`
-```python
-"""
-Unit tests for src/data_processor.py
-
-Run with:
-    pytest tests/test_data_
+    # ------------------------------------------------------------------
+    # Transformation helpers
+    # ------------------------------------------------------------------
