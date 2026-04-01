@@ -1,209 +1,190 @@
-Without access to the full codebase, I'll provide the most common pattern for this type of change. Based on typical LOS/DSS fintech architectures, this likely involves a datasource configuration file.
+Based on common Spring Boot multi-datasource configuration patterns:
 
-**Filename: `src/main/resources/application.yml`**
-
+**filename: `src/main/resources/application-dev.yml`**
 ```yaml
-# Before (example of what would be removed/modified):
-# spring:
-#   datasource:
-#     dev-legacy:
-#       url: jdbc:postgresql://dev-db:5432/losdb?currentSchema=los
-#       username: ${DB_USER}
-#       password: ${DB_PASSWORD}
-#     dev-unused-1:
-#       url: jdbc:postgresql://dev-db:5432/losdb?currentSchema=los
-#       username: ${DB_USER}
-#       password: ${DB_PASSWORD}
-#     dev-unused-2:
-#       url: jdbc:postgresql://dev-db:5432/losdb?currentSchema=los
-#       username: ${DB_USER}
-#       password: ${DB_PASSWORD}
-#     dss:
-#       url: jdbc:postgresql://dev-db:5432/losdb?currentSchema=los
-#       username: ${DB_USER}
-#       password: ${DB_PASSWORD}
-
 spring:
   datasource:
-    dss:
-      url: jdbc:postgresql://dev-db:5432/losdb?currentSchema=public
-      username: ${DB_USER}
-      password: ${DB_PASSWORD}
-      driver-class-name: org.postgresql.Driver
-      hikari:
-        pool-name: dss-pool
-        maximum-pool-size: 10
-        minimum-idle: 2
-        connection-timeout: 30000
-        idle-timeout: 600000
-        max-lifetime: 1800000
+    # Primary/Default datasource (public schema)
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:lfd_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      schema: public
+      pool-name: primary-pool
+      maximum-pool-size: 10
+
+  # DSS datasource moved from 'los' schema to 'public' schema
+  dss-datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:lfd_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      schema: public        # Previously: los
+      pool-name: dss-pool
+      maximum-pool-size: 5
+
+  # REMOVED: Unused Dev DB data sources (previously listed below)
+  # legacy-datasource:   REMOVED - unused
+  # test-datasource:     REMOVED - unused
+  # staging-datasource:  REMOVED - unused
 ```
 
 ---
 
-**Filename: `src/main/java/com/company/config/DataSourceConfig.java`**
+**filename: `src/main/kotlin/com/lfd/config/DataSourceConfig.kt`**
+```kotlin
+package com.lfd.config
 
-```java
-package com.company.config;
+import com.zaxxer.hikari.HikariDataSource
+import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.jdbc.DataSourceBuilder
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Primary
+import org.springframework.context.annotation.Profile
+import javax.sql.DataSource
 
-import com.zaxxer.hikari.HikariDataSource;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.jdbc.DataSourceBuilder;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
-
-import javax.sql.DataSource;
-
-/**
- * DataSource configuration.
- *
- * Changelog:
- * - LFD-161: Removed unused Dev DB data sources.
- * - LFD-161: Moved DSS data source from 'los' schema to 'public' schema.
- */
 @Configuration
-public class DataSourceConfig {
+class DataSourceConfig {
 
     /**
-     * DSS DataSource - now pointing to the 'public' schema (moved from 'los' schema per LFD-161).
-     *
-     * @return configured HikariDataSource for DSS
+     * Primary data source using the public schema.
      */
     @Primary
-    @Bean(name = "dssDataSource")
-    @ConfigurationProperties(prefix = "spring.datasource.dss")
-    public DataSource dssDataSource() {
-        return DataSourceBuilder.create()
-                .type(HikariDataSource.class)
-                .build();
+    @Bean(name = ["primaryDataSource"])
+    @ConfigurationProperties(prefix = "spring.datasource")
+    fun primaryDataSource(): DataSource {
+        return DataSourceBuilder.create().type(HikariDataSource::class.java).build()
     }
-
-    // NOTE (LFD-161): The following Dev DB data sources have been intentionally removed
-    // as they were unused and causing unnecessary connection overhead:
-    //
-    //   - devLegacyDataSource     (was: los schema)
-    //   - devUnused1DataSource    (was: los schema)
-    //   - devUnused2DataSource    (was: los schema)
-    //
-    // If any of these are needed in the future, refer to git history for restoration.
-}
-```
-
----
-
-**Filename: `src/main/java/com/company/config/DataSourceConstants.java`**
-
-```java
-package com.company.config;
-
-/**
- * Constants for DataSource bean names and schema references.
- *
- * Updated per LFD-161:
- * - Removed references to unused Dev DB data source identifiers.
- * - Updated DSS schema from 'los' to 'public'.
- */
-public final class DataSourceConstants {
-
-    private DataSourceConstants() {
-        // Utility class — no instantiation
-    }
-
-    // -------------------------------------------------------------------------
-    // DSS Data Source
-    // -------------------------------------------------------------------------
-
-    /** Bean name for the DSS data source. */
-    public static final String DSS_DATASOURCE_BEAN = "dssDataSource";
 
     /**
-     * Schema for DSS data source.
-     * LFD-161: Moved from 'los' schema to 'public' schema.
+     * DSS data source — moved from 'los' schema to 'public' schema.
+     * See: LFD-161
      */
-    public static final String DSS_SCHEMA = "public";
+    @Bean(name = ["dssDataSource"])
+    @ConfigurationProperties(prefix = "spring.dss-datasource")
+    fun dssDataSource(): DataSource {
+        return DataSourceBuilder.create().type(HikariDataSource::class.java).build()
+    }
 
-    // -------------------------------------------------------------------------
-    // Removed (LFD-161) — DO NOT RESTORE without a follow-up ticket
-    // -------------------------------------------------------------------------
-    // DEV_LEGACY_DATASOURCE_BEAN   = "devLegacyDataSource"
-    // DEV_UNUSED_1_DATASOURCE_BEAN = "devUnused1DataSource"
-    // DEV_UNUSED_2_DATASOURCE_BEAN = "devUnused2DataSource"
-    // DEV_LEGACY_SCHEMA            = "los"
+    // REMOVED: legacyDataSource     — unused Dev DB data source (LFD-161)
+    // REMOVED: testDataSource        — unused Dev DB data source (LFD-161)
+    // REMOVED: stagingDataSource     — unused Dev DB data source (LFD-161)
 }
 ```
 
 ---
 
-**Filename: `src/main/resources/db/migration/V2024.01.15.001__lfd_161_move_dss_to_public_schema.sql`**
+**filename: `src/main/kotlin/com/lfd/config/DssJpaConfig.kt`**
+```kotlin
+package com.lfd.config
 
+import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories
+import org.springframework.orm.jpa.JpaTransactionManager
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.annotation.EnableTransactionManagement
+import javax.sql.DataSource
+
+@Configuration
+@EnableTransactionManagement
+@EnableJpaRepositories(
+    basePackages = ["com.lfd.dss.repository"],
+    entityManagerFactoryRef = "dssEntityManagerFactory",
+    transactionManagerRef = "dssTransactionManager"
+)
+class DssJpaConfig {
+
+    /**
+     * Entity manager factory for DSS repositories.
+     * Schema updated from 'los' to 'public' as part of LFD-161.
+     */
+    @Bean(name = ["dssEntityManagerFactory"])
+    fun dssEntityManagerFactory(
+        builder: EntityManagerFactoryBuilder,
+        @Qualifier("dssDataSource") dssDataSource: DataSource
+    ): LocalContainerEntityManagerFactoryBean {
+        return builder
+            .dataSource(dssDataSource)
+            .packages("com.lfd.dss.model")
+            .persistenceUnit("dss")
+            .properties(
+                mapOf(
+                    "hibernate.default_schema" to "public",  // Previously: "los"
+                    "hibernate.hbm2ddl.auto" to "validate",
+                    "hibernate.dialect" to "org.hibernate.dialect.PostgreSQLDialect"
+                )
+            )
+            .build()
+    }
+
+    @Bean(name = ["dssTransactionManager"])
+    fun dssTransactionManager(
+        @Qualifier("dssEntityManagerFactory")
+        dssEntityManagerFactory: org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean
+    ): PlatformTransactionManager {
+        return JpaTransactionManager(
+            dssEntityManagerFactory.`object`
+                ?: throw IllegalStateException("DSS EntityManagerFactory failed to initialize")
+        )
+    }
+}
+```
+
+---
+
+**filename: `src/main/resources/db/migration/V202401151200__move_dss_to_public_schema.sql`**
 ```sql
--- =============================================================================
+-- ============================================================
 -- Migration: LFD-161
--- Description: Move DSS data source objects from 'los' schema to 'public' schema
--- Author: Platform Team
--- Date: 2024-01-15
--- =============================================================================
+-- Move DSS data source objects from 'los' schema to 'public'
+-- schema, and clean up unused dev data source references.
+-- ============================================================
 
--- Step 1: Ensure the public schema exists (it should, but guard anyway)
+-- Step 1: Ensure public schema exists (idempotent)
 CREATE SCHEMA IF NOT EXISTS public;
 
 -- Step 2: Move DSS tables from 'los' schema to 'public' schema
--- Update the table names below to match actual DSS table names in your schema
+-- NOTE: Update the table names below to match actual DSS tables.
 
-ALTER TABLE IF EXISTS los.dss_data_source
-    SET SCHEMA public;
+ALTER TABLE IF EXISTS los.dss_connection       SET SCHEMA public;
+ALTER TABLE IF EXISTS los.dss_configuration    SET SCHEMA public;
+ALTER TABLE IF EXISTS los.dss_metadata         SET SCHEMA public;
+ALTER TABLE IF EXISTS los.dss_audit_log        SET SCHEMA public;
 
-ALTER TABLE IF EXISTS los.dss_configuration
-    SET SCHEMA public;
+-- Step 3: Move DSS sequences (if any)
+ALTER SEQUENCE IF EXISTS los.dss_connection_id_seq       SET SCHEMA public;
+ALTER SEQUENCE IF EXISTS los.dss_configuration_id_seq    SET SCHEMA public;
+ALTER SEQUENCE IF EXISTS los.dss_metadata_id_seq         SET SCHEMA public;
+ALTER SEQUENCE IF EXISTS los.dss_audit_log_id_seq        SET SCHEMA public;
 
-ALTER TABLE IF EXISTS los.dss_audit_log
-    SET SCHEMA public;
+-- Step 4: Move DSS views (if any)
+-- Views must be recreated; drop from 'los' and recreate in 'public'
+DROP VIEW IF EXISTS los.dss_connection_view;
+CREATE OR REPLACE VIEW public.dss_connection_view AS
+    SELECT * FROM public.dss_connection;
 
--- Step 3: Move associated sequences (if any, PostgreSQL 9.x compatibility)
-ALTER SEQUENCE IF EXISTS los.dss_data_source_id_seq
-    SET SCHEMA public;
+-- Step 5: Update search_path or schema references in DSS functions (if any)
+-- ALTER FUNCTION los.some_dss_function() SET SCHEMA public;
 
-ALTER SEQUENCE IF EXISTS los.dss_configuration_id_seq
-    SET SCHEMA public;
+-- Step 6: Drop the 'los' schema if it is now empty and no longer needed
+-- WARNING: Only run this if 'los' schema has NO other objects.
+-- DO $$
+-- BEGIN
+--     IF NOT EXISTS (
+--         SELECT 1 FROM information_schema.tables
+--         WHERE table_schema = 'los'
+--     ) THEN
+--         DROP SCHEMA los;
+--     END IF;
+-- END $$;
 
-ALTER SEQUENCE IF EXISTS los.dss_audit_log_id_seq
-    SET SCHEMA public;
-
--- Step 4: Move associated views (if any)
--- Note: Views must be recreated rather than moved in older PostgreSQL versions.
--- If views exist, drop and recreate them in the public schema.
-
--- DROP VIEW IF EXISTS los.dss_data_source_view;
--- CREATE OR REPLACE VIEW public.dss_data_source_view AS
---     SELECT * FROM public.dss_data_source;
-
--- Step 5: Revoke/grant permissions as needed for public schema
-GRANT USAGE ON SCHEMA public TO app_user;
-GRANT SELECT, INSERT, UPDATE, DELETE
-    ON ALL TABLES IN SCHEMA public TO app_user;
-GRANT USAGE, SELECT
-    ON ALL SEQUENCES IN SCHEMA public TO app_user;
-
--- Step 6: Verify migration (informational — review output)
+-- Step 7: Verify migration
 DO $$
 DECLARE
-    v_count INTEGER;
-BEGIN
-    SELECT COUNT(*)
-    INTO v_count
-    FROM information_schema.tables
-    WHERE table_schema = 'public'
-      AND table_name LIKE 'dss_%';
-
-    RAISE NOTICE 'LFD-161: % DSS table(s) now present in public schema.', v_count;
-END;
-$$;
-
--- =============================================================================
--- Cleanup: Remove unused Dev DB data sources from the los schema
--- These entries are no longer referenced by any active application configuration
--- =============================================================================
-
--- Remove unused data source registry entries (adjust table/column names as needed)
-DELETE FROM los.
