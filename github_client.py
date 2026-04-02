@@ -48,13 +48,27 @@ def create_branch_and_pr(branch_name: str, pr_title: str, pr_description: str, c
         print(f"Committed code fix to {file_path} on branch {branch_name}")
 
     # Open the PR
-    pr = repo.create_pull(
-        title=pr_title,
-        body=pr_description,
-        head=branch_name,
-        base=base_branch,
-    )
-    print(f"Pull request created: {pr.html_url}")
+    try:
+        pr = repo.create_pull(
+            title=pr_title,
+            body=pr_description,
+            head=branch_name,
+            base=base_branch,
+        )
+        print(f"Pull request created: {pr.html_url}")
+    except GithubException as e:
+        if e.status == 422 and any(
+            "pull request already exists" in err.get("message", "").lower()
+            for err in e.data.get("errors", [])
+        ):
+            pulls = repo.get_pulls(state="open", head=f"{repo.owner.login}:{branch_name}", base=base_branch)
+            pr = next(iter(pulls), None)
+            if pr:
+                print(f"Pull request already exists: {pr.html_url}")
+            else:
+                raise
+        else:
+            raise
     return pr.html_url
 
 

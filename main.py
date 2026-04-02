@@ -33,9 +33,16 @@ def run_pipeline(ticket_id: str = None):
     fix = generate_code_fix(ticket)
     print(f"  Branch  : {fix['branch_name']}")
     print(f"  PR Title: {fix['pr_title']}")
+    print(f"\n  PR Description:\n{fix['pr_description']}")
 
-    # Step 3: Create GitHub branch and PR
-    print("\n[3/3] Creating GitHub branch and PR...")
+    # Step 3: Ask developer before creating PR
+    print("\n[3/3] Review the details above before proceeding.")
+    confirm = input("\nCreate the PR? [y/N] ").strip().lower()
+    if confirm != "y":
+        print("Aborted. No PR was created.")
+        return None
+
+    print("\nCreating GitHub branch and PR...")
     pr_url = create_branch_and_pr(
         branch_name=fix["branch_name"],
         pr_title=fix["pr_title"],
