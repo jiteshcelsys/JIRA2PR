@@ -28,12 +28,17 @@ def run_pipeline(ticket_id: str = None):
     print(f"  Summary : {ticket['summary']}")
     print(f"  Status  : {ticket['status']}")
 
-    # Step 2: Generate code fix with Claude
-    print("\n[2/3] Generating code fix with Claude AI...")
+    # Step 2: Implement changes with Claude (reads app files, uses tool use)
+    print("\n[2/3] Implementing changes with Claude AI...")
     fix = generate_code_fix(ticket)
     print(f"  Branch  : {fix['branch_name']}")
     print(f"  PR Title: {fix['pr_title']}")
+    print(f"  Files changed: {list(fix['changed_files'].keys()) or 'none'}")
     print(f"\n  PR Description:\n{fix['pr_description']}")
+
+    if not fix["changed_files"]:
+        print("\nClaude made no file changes — nothing to commit.")
+        return None
 
     # Step 3: Ask developer before creating PR
     print("\n[3/3] Review the details above before proceeding.")
@@ -47,7 +52,7 @@ def run_pipeline(ticket_id: str = None):
         branch_name=fix["branch_name"],
         pr_title=fix["pr_title"],
         pr_description=fix["pr_description"],
-        code_fix=fix["code_fix"],
+        changed_files=fix["changed_files"],
     )
 
     print("\n" + "=" * 60)
