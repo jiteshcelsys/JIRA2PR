@@ -1,5 +1,64 @@
 "use strict";
 
+function saveToHistory(text) {
+  const history = JSON.parse(localStorage.getItem('taskHistory') || '[]');
+  history.push({ text: text, timestamp: Date.now() });
+  localStorage.setItem('taskHistory', JSON.stringify(history));
+}
+
+function getRecentHistory() {
+  const history = JSON.parse(localStorage.getItem('taskHistory') || '[]');
+  const twoDaysAgo = Date.now() - (2 * 24 * 60 * 60 * 1000);
+  return history.filter(function(item) { return item.timestamp >= twoDaysAgo; });
+}
+
+function renderHistoryPopup() {
+  const list = document.getElementById('history-list');
+  const items = getRecentHistory();
+  list.innerHTML = '';
+  if (items.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'history-empty';
+    empty.textContent = 'No completed tasks in the last 2 days.';
+    list.appendChild(empty);
+    return;
+  }
+  items.slice().reverse().forEach(function(item) {
+    const li = document.createElement('li');
+    const taskText = document.createElement('span');
+    taskText.textContent = item.text;
+    const dateSpan = document.createElement('span');
+    dateSpan.className = 'history-date';
+    dateSpan.textContent = new Date(item.timestamp).toLocaleString();
+    li.appendChild(taskText);
+    li.appendChild(dateSpan);
+    list.appendChild(li);
+  });
+}
+
+const historyBtn = document.getElementById('history-btn');
+const historyPopup = document.getElementById('history-popup');
+
+if (historyBtn && historyPopup) {
+  historyBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (historyPopup.classList.contains('hidden')) {
+      renderHistoryPopup();
+      historyPopup.classList.remove('hidden');
+    } else {
+      historyPopup.classList.add('hidden');
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!historyPopup.classList.contains('hidden') &&
+        !historyBtn.contains(e.target) &&
+        !historyPopup.contains(e.target)) {
+      historyPopup.classList.add('hidden');
+    }
+  });
+}
+
 const taskInput = document.querySelector('input.task');
 const lists = document.querySelector('.lists');
 
@@ -54,6 +113,7 @@ lists.addEventListener('click', (event) => {
       if (basevalue  === 'delete' || basevalue  === 'can' || basevalue  === 'cap' || basevalue  === 'bin') {
         let li = event.target.parentNode.parentNode;
         let ul = li.parentNode;
+        saveToHistory(li.childNodes[0].textContent.trim());
         ul.removeChild(li);
       } else if ( basevalue === 'fav') {
         let li = event.target.parentNode.parentNode;
@@ -71,6 +131,7 @@ lists.addEventListener('click', (event) => {
       if (basevalue  === 'delete' || basevalue  === 'can' || basevalue  === 'cap' || basevalue  === 'bin') {
         let li = event.target.parentNode.parentNode.parentNode.parentNode;
         let ul = li.parentNode;
+        saveToHistory(li.childNodes[0].textContent.trim());
         ul.removeChild(li);
       } else if ( basevalue === 'favPath') {
         let li = event.target.parentNode.parentNode.parentNode;
