@@ -6,8 +6,5 @@ node_modules/
 dist/
 build/
 *.log
-claude_client.py
-github_client.py
-jira_client.py
-main.py
-requirements.txt
+pipeline_state.json
+PLAN.md
