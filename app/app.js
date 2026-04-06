@@ -77,6 +77,16 @@ if (historyBtn && historyPopup) {
   });
 }
 
+function showToast() {
+  const toast = document.getElementById('task-toast');
+  if (!toast) return;
+  toast.classList.remove('hidden');
+  clearTimeout(toast._hideTimer);
+  toast._hideTimer = setTimeout(function () {
+    toast.classList.add('hidden');
+  }, 2000);
+}
+
 const taskInput = document.querySelector('input.task');
 const lists = document.querySelector('.lists');
 
@@ -112,6 +122,7 @@ taskInput.addEventListener('keyup', (e) => {
 
       tasksTitle.textContent = "Inbox";
       tasksSection.style.display = "";
+      showToast();
     }
   }
 });
