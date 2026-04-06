@@ -1,78 +1,110 @@
-# Jira2PR — Claude Code Operator Instructions
+# Jira2PR — Claude Code Rules & Pipeline
 
-This file defines how Claude Code behaves in this project.
-Follow these instructions for every user interaction. No Python scripts are needed.
-
----
-
-## Trigger: Jira Ticket ID
-
-When the user sends a message matching **`[A-Z]+-[0-9]+`** (e.g. `SCRUM-5`, `PROJ-123`, `BUG-42`),
-treat it as a Jira ticket ID and execute the full pipeline below.
-Extract the ticket ID from longer messages if needed. Begin immediately — no clarification needed.
+## How this file works
+Claude Code automatically reads `CLAUDE.md` from the project root on every session.
+These rules override all default Claude behaviour for this project.
+**No additional setup is needed.** When you type a Jira ticket ID, the pipeline below runs automatically.
 
 ---
 
-## Safety Check (run BEFORE any action)
+## Greeting & Onboarding
 
-Scan the ticket ID and any user-provided description for destructive intent.
-Keywords to watch for: "remove", "delete", "drop", "clear", "wipe", "reset", "disable",
-"replace" — applied to existing features, files, or functionality.
-
-If detected, stop and ask:
+When the user opens a new session **without** a ticket ID in their first message
+(e.g. they say "hi", "hello", "start", "help", or anything else that is not a ticket ID),
+respond with exactly this message and wait for their reply:
 
 ```
-⚠️  This ticket appears to involve removing or significantly altering existing functionality:
-    "<ticket ID>"
+👋 Welcome to Jira2PR!
+
+I'll take a Jira ticket number and automatically:
+  1. Fetch the ticket details from Jira
+  2. Analyse the code and propose a plan for your approval
+  3. Implement the changes
+  4. Run tests
+  5. Create a GitHub pull request
+
+Please enter your Jira ticket number to get started.
+Example: SCRUM-10  |  PROJ-123  |  BUG-42
+```
+
+Do not start the pipeline, load credentials, or take any other action until the user
+provides a ticket ID.
+
+---
+
+## Trigger
+
+Any message containing a pattern matching **`[A-Z]+-[0-9]+`** (e.g. `SCRUM-10`, `PROJ-123`, `BUG-42`)
+is treated as a Jira ticket ID. The full pipeline executes immediately — no clarification needed.
+
+---
+
+## Safety Check (runs before everything else)
+
+Before loading credentials or calling any API, scan the ticket summary and description for
+destructive intent. Keywords to watch: `remove`, `delete`, `drop`, `clear`, `wipe`, `reset`,
+`disable`, `replace` — when applied to existing features, files, or functionality.
+
+**If detected, stop and prompt:**
+```
+⚠️  This ticket appears to involve removing or significantly altering existing functionality.
+    Ticket : <TICKET_ID>
+    Summary: <summary>
 
     Proceeding will make potentially irreversible changes to the app.
     Are you sure you want to continue? [y/n]
 ```
-
 - `y` → proceed to Step 1
-- `n` → say "Operation cancelled. No changes were made." and stop
+- `n` → say `"Operation cancelled. No changes were made."` and stop
 
-Do NOT read any files, call any API, or run any command until the user confirms.
+Do NOT read files, call APIs, or run commands until confirmed.
 
 ---
 
-## Pipeline
+## Step 1 — Load credentials
 
-### Step 1 — Load credentials from .env
-
-Run:
 ```bash
 export $(grep -v '^#' .env | xargs)
 ```
 
-This loads: `JIRA_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `GITHUB_TOKEN`,
-`GITHUB_REPO`, `GITHUB_BASE_BRANCH` (defaults to `main` if unset).
+Variables loaded:
+
+| Variable             | Purpose                                       |
+|----------------------|-----------------------------------------------|
+| `JIRA_URL`           | Base URL of the Jira instance                 |
+| `JIRA_EMAIL`         | Jira account email                            |
+| `JIRA_API_TOKEN`     | Jira API token                                |
+| `GITHUB_TOKEN`       | GitHub personal access token                  |
+| `GITHUB_REPO`        | `owner/repo` (e.g. `jiteshcelsys/JIRA2PR`)   |
+| `GITHUB_BASE_BRANCH` | Target branch — defaults to `main` if unset   |
 
 **Never print, log, or display any credential value.**
 
 ---
 
-### Step 2 — Fetch Jira ticket
+## Step 2 — Fetch & display the Jira ticket
 
-Run:
 ```bash
 curl -s -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
   "$JIRA_URL/rest/api/2/issue/<TICKET_ID>"
 ```
 
-Parse the JSON response and extract:
-- `key` → ticket ID
-- `fields.summary` → one-line title
-- `fields.description` → full description (may be null — treat as empty string)
-- `fields.status.name` → current status
-- `fields.issuetype.name` → issue type
-- `fields.priority.name` → priority (may be null — treat as "None")
+Extract from the JSON response:
 
-If the response contains an error or HTTP status is not 200, show the error and stop:
-- 401 → "Authentication failed. Check JIRA_EMAIL and JIRA_API_TOKEN in .env"
-- 404 → "Ticket <ID> not found. Check the ticket ID and JIRA_URL in .env"
+| JSON field               | Variable      | Notes                        |
+|--------------------------|---------------|------------------------------|
+| `key`                    | ticket ID     |                              |
+| `fields.summary`         | summary       | Used in PR title + commit    |
+| `fields.description`     | description   | null → treat as empty string |
+| `fields.status.name`     | status        | Display only                 |
+| `fields.issuetype.name`  | issue type    | Used for branch prefix       |
+| `fields.priority.name`   | priority      | null → "None"                |
 
-Display to the user:
+**Error handling:**
+- HTTP 401 → `"Authentication failed. Check JIRA_EMAIL and JIRA_API_TOKEN in .env"` — stop
+- HTTP 404 → `"Ticket <ID> not found. Check the ticket ID and JIRA_URL in .env"` — stop
+
+**Display:**
 ```
 Ticket   : <ID>
 Summary  : <summary>
@@ -82,89 +114,151 @@ Type     : <type> | Priority: <priority>
 
 ---
 
-### Step 3 — Implement code changes (Claude generates directly)
+## Step 3 — Analyse & propose a plan (developer approval required)
 
-Read every file in the `app/` directory using the Read tool.
+Read every file in `app/` using the **Read tool** — no edits yet.
 
-Using the ticket summary and description as the requirement:
-- Use the **Edit tool** to modify existing files
-- Use the **Write tool** to create new files
-- Only touch files that are necessary for the ticket
-- Make complete, working changes — not partial diffs
+Using the ticket summary and description, determine:
+- Which files need to change and why
+- Exactly what changes are needed in each file
 
-After making all changes, list every modified file:
+Present the plan:
+```
+Affected files:
+- app/app.js     — <reason>
+- app/style.css  — <reason>
+- app/index.html — <reason>
+
+Proposed changes:
+- <change 1>
+- <change 2>
+- <change 3>
+
+Proceed with these changes? [y/n]
+```
+
+- `y` → continue to Step 4
+- anything else → `"Cancelled. No files were modified."` — stop
+
+**Do NOT edit any file before the developer types `y`.**
+
+---
+
+## Step 4 — Implement code changes
+
+Apply only the changes from the approved plan:
+- **Edit tool** to modify existing files
+- **Write tool** to create new files
+- Only touch files listed in the plan
+- Make complete, working changes — no partial diffs
+
+After all edits, display:
 ```
 Files changed:
 - app/index.html
 - app/style.css
+- app/app.js
 ```
 
-Display the full content of each changed file in a labelled fenced code block with
-the appropriate language tag (html, css, js).
+Show the full content of each changed file in a fenced code block with the correct language tag
+(`html`, `css`, `js`).
 
 ---
 
-### Step 4 — Run tests
+## Step 5 — Run tests (gates PR creation)
 
-Run:
 ```bash
 npm test
 ```
 
-Show the **complete output verbatim** — do not summarise or truncate.
-After the output say: `"Tests complete. Review the results above before confirming the PR."`
+Show complete output verbatim — do not truncate.
 
-If `npm` is not available (exit code 127), say:
-`"npm not available — skipping tests."` and continue to Step 5.
+| Result | Action |
+|--------|--------|
+| **Tests pass** | Say `"Tests complete. Review the results above before confirming the PR."` → continue to Step 6 |
+| **Tests fail** | Say `"Tests failed. Fix the failures above before creating a PR. No PR was created."` → **stop** |
+| npm not found (exit 127) | Say `"npm not available — skipping tests."` → continue to Step 6 |
+
+**A PR is never created when tests fail.**
 
 ---
 
-### Step 5 — Propose PR metadata and ask user
+## Step 6 — Propose PR metadata and ask developer
 
-Generate:
-- **Branch name**: `feature/<ticket-id-lower>-<short-slug>` (e.g. `feature/scrum-7-add-header`)
-  - Use only lowercase letters, numbers, hyphens
-  - Keep the slug under 30 chars
-- **PR title**: `<TICKET_ID>: <summary>` (max 72 chars)
-- **PR description** (markdown):
-  ```
-  ## Summary
-  <1-3 bullet points of what was done>
+**Branch prefix** (from `issuetype` in Step 2):
+- `Bug` → `bugfix/`
+- Any other type → `feature/`
 
-  ## Motivation
-  <why this change was needed, based on the ticket>
+**Branch name**: `<prefix><ticket-id-lowercase>-<short-slug>`
+- Lowercase letters, numbers, hyphens only
+- Slug ≤ 30 characters
+- Examples: `feature/scrum-10-add-task-popup` · `bugfix/proj-123-null-token`
 
-  ## Changes
-  <bullet list of files changed and what changed in each>
-  ```
+**PR title**: `<TICKET_ID>: <summary>` (max 72 chars)
 
-Show the branch name and PR title to the user, then ask:
+**PR description:**
+```markdown
+## Summary
+- <bullet 1>
+- <bullet 2>
+
+## Motivation
+<why this change was needed, from the ticket>
+
+## Changes
+- `app/file.js` — <what changed>
+
+## Tests
+- <test name 1>
+- <test name 2>
+
+## Jira
+[<TICKET_ID>](<JIRA_URL>/browse/<TICKET_ID>)
+```
+
+Show the proposed branch name and PR title, then ask:
 ```
 Create PR? [y/n]
 ```
-
-- `y` (or starts with y/Y) → proceed to Step 6
-- Anything else → say:
-  `"Aborted. Your changes are still on disk in app/. To discard them run: git checkout app/"`
-  and stop.
+- `y` → continue to Step 7
+- anything else → `"Aborted. Your changes are still on disk in app/. To discard them run: git checkout app/"` — stop
 
 ---
 
-### Step 6 — Commit, push, and create PR
+## Step 7 — Commit, push, and create PR
 
-Run git commands in sequence:
+Run in this exact sequence:
+
 ```bash
 BASE_BRANCH="${GITHUB_BASE_BRANCH:-main}"
 
+# 1. Stash the uncommitted changes from Step 4
+git stash
+
+# 2. Sync the base branch
 git checkout "$BASE_BRANCH"
 git pull origin "$BASE_BRANCH"
-git checkout -b "<BRANCH_NAME>"
+
+# 3. Smart branch: reuse existing branch if ticket ID is already in the name, else create new
+EXISTING=$(git branch --list "*<TICKET_ID_LOWER>*" | head -1 | xargs)
+if [ -n "$EXISTING" ]; then
+  git checkout "$EXISTING"
+  echo "Reusing existing branch: $EXISTING"
+else
+  git checkout -b "<BRANCH_NAME>"
+  echo "Created new branch: <BRANCH_NAME>"
+fi
+
+# 4. Restore the stashed changes onto the correct branch
+git stash pop
+
+# 5. Stage only app/, commit, push
 git add app/
 git commit -m "<TICKET_ID>: <summary>"
 git push origin "<BRANCH_NAME>"
 ```
 
-Then create the PR. Try `gh` CLI first:
+**Create the PR — try `gh` CLI first:**
 ```bash
 gh pr create \
   --title "<PR_TITLE>" \
@@ -173,16 +267,41 @@ gh pr create \
   --head "<BRANCH_NAME>"
 ```
 
-If `gh` is not available, fall back to the GitHub REST API:
+**If `gh` is not available, fall back to Node.js (always available in this project):**
 ```bash
-curl -s -X POST \
-  -H "Authorization: token $GITHUB_TOKEN" \
-  -H "Content-Type: application/json" \
-  "https://api.github.com/repos/$GITHUB_REPO/pulls" \
-  -d "{\"title\":\"<PR_TITLE>\",\"body\":\"<PR_BODY_ESCAPED>\",\"head\":\"<BRANCH_NAME>\",\"base\":\"$BASE_BRANCH\"}"
+node -e "
+const https = require('https');
+const body = JSON.stringify({
+  title: '<PR_TITLE>',
+  body: '<PR_DESCRIPTION_ESCAPED>',
+  head: '<BRANCH_NAME>',
+  base: process.env.GITHUB_BASE_BRANCH || 'main'
+});
+const options = {
+  hostname: 'api.github.com',
+  path: '/repos/' + process.env.GITHUB_REPO + '/pulls',
+  method: 'POST',
+  headers: {
+    'Authorization': 'token ' + process.env.GITHUB_TOKEN,
+    'Content-Type': 'application/json',
+    'User-Agent': 'Jira2PR',
+    'Content-Length': Buffer.byteLength(body)
+  }
+};
+const req = https.request(options, res => {
+  let data = '';
+  res.on('data', chunk => data += chunk);
+  res.on('end', () => {
+    const pr = JSON.parse(data);
+    console.log(pr.html_url || JSON.stringify(pr));
+  });
+});
+req.write(body);
+req.end();
+"
 ```
 
-Extract `html_url` from the JSON response and report:
+**On success:**
 ```
 PR created successfully!
 <URL>
@@ -194,12 +313,15 @@ PR created successfully!
 
 | Situation | Action |
 |-----------|--------|
-| Jira 401 | "Authentication failed. Check JIRA_EMAIL and JIRA_API_TOKEN in .env" |
-| Jira 404 | "Ticket <ID> not found. Check the ticket ID and JIRA_URL in .env" |
-| `git push` fails | Show the git error. Say: "Push failed. Check your GITHUB_TOKEN and repo permissions." |
-| `gh pr create` fails | Try the curl fallback. If that also fails, show the error and stop. |
-| No `gh` or `curl` | "Branch pushed. Create the PR manually at github.com/<GITHUB_REPO>/compare/<BRANCH_NAME>" |
-| No files changed | "No changes were needed for <TICKET_ID>." and stop. |
+| Jira 401 | Authentication failed message — stop |
+| Jira 404 | Ticket not found message — stop |
+| Developer rejects plan | `"Cancelled. No files were modified."` — stop |
+| Tests fail | `"Tests failed. No PR was created."` — stop |
+| `git stash pop` conflict | Show conflict output. Say `"Stash pop failed. Resolve conflicts in app/ manually."` — stop |
+| `git push` fails | Show git error. Say `"Push failed. Check GITHUB_TOKEN and repo permissions."` — stop |
+| `gh pr create` fails | Try Node.js fallback. If that also fails, show error — stop |
+| Neither `gh` nor Node.js | `"Branch pushed. Create the PR manually at github.com/<GITHUB_REPO>/compare/<BRANCH_NAME>"` |
+| No files changed | `"No changes were needed for <TICKET_ID>."` — stop |
 
 Do NOT attempt to auto-fix errors. Report and stop.
 
@@ -208,26 +330,71 @@ Do NOT attempt to auto-fix errors. Report and stop.
 ## Rules
 
 1. **Never read, display, or log `.env` contents or any credential value.**
-2. **Never run `python main.py`** — Python scripts are not part of this workflow.
+2. **Never run `python main.py`** — legacy script, not part of this workflow.
 3. **Only stage `app/`** — never commit files outside the `app/` directory.
-4. **Never ask for credentials** — they are in `.env` and loaded in Step 1.
-5. **Always run the safety check first** for any ticket with destructive keywords.
-6. **Never skip tests** unless `npm` is genuinely unavailable (exit code 127).
-7. **Default base branch to `main`** if `GITHUB_BASE_BRANCH` is not set.
+4. **Never ask for credentials** — they live in `.env` and are loaded in Step 1.
+5. **Always run the safety check first** — before loading credentials or touching files.
+6. **Always show the analysis plan and get `y` approval** before editing any file.
+7. **Never create a PR if tests fail** — tests are a hard gate.
+8. **Always `git stash` before switching branches** — protects Step 4 changes.
+9. **Reuse an existing branch** if its name already contains the ticket ID.
+10. **Default base branch to `main`** if `GITHUB_BASE_BRANCH` is unset.
+11. **Branch prefix = `bugfix/`** for Bug type; `feature/` for all other types.
 
 ---
 
-## Project Layout (reference)
+## Pipeline at a glance
+
+```
+Ticket ID received
+      │
+      ▼
+Safety Check ──── destructive? ──► confirm y/n ──► n → stop
+      │ clear
+      ▼
+Step 1 · Load .env
+      │
+      ▼
+Step 2 · Fetch Jira → display ticket info
+      │
+      ▼
+Step 3 · Read app/ → analyse → propose plan → y/n
+      │ y                                    n → stop
+      ▼
+Step 4 · Implement changes (Edit / Write)
+      │
+      ▼
+Step 5 · npm test
+      │ pass                               fail → stop (no PR)
+      ▼
+Step 6 · Generate branch + PR metadata → y/n
+      │ y                                    n → stop
+      ▼
+Step 7 · git stash
+         git checkout base + pull
+         smart branch (reuse or create)
+         git stash pop
+         git add app/ + commit + push
+         gh pr create  (or Node.js fallback)
+      │
+      ▼
+  PR URL displayed ✓
+```
+
+---
+
+## Project layout
 
 ```
 Jira2PR/
-  app/                   # application source files — all Claude changes go here
+  app/                  ← all Claude edits go here
     index.html
     style.css
     app.js
     buttons.js
-  tests/todo.test.js     # Jest test suite
-  .env                   # credentials — never read or display contents
-  CLAUDE.md              # this file
-  main.py                # legacy Python pipeline (not used in this workflow)
+  tests/
+    todo.test.js        ← Jest suite — must pass before PR
+  .env                  ← credentials (never display)
+  CLAUDE.md             ← this file — the only rules file
+  main.py               ← legacy Python pipeline (never run)
 ```
