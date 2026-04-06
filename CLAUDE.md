@@ -22,6 +22,7 @@ I'll take a Jira ticket number and automatically:
   3. Implement the changes
   4. Run tests
   5. Create a GitHub pull request
+  6. Post a comment on the Jira ticket with the PR link
 
 Please enter your Jira ticket number to get started.
 Example: SCRUM-10  |  PROJ-123  |  BUG-42
@@ -322,6 +323,56 @@ PR created successfully!
 
 ---
 
+## Step 8 — Write back to Jira
+
+Run both sub-steps after a successful PR creation. Failures are **non-fatal** — warn and continue.
+
+### Step 8a — Post a comment on the Jira ticket
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" -X POST \
+  -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  "$JIRA_URL/rest/api/2/issue/<TICKET_ID>/comment" \
+  -d "{\"body\": \"🤖 PR created by Claude Code\n\nPR     : <PR_URL>\nBranch : <BRANCH_NAME>\nSummary: <COMMIT_SUMMARY>\n\nWhat was implemented:\n<COMMIT_WHAT>\"}"
+```
+
+- HTTP 2xx → say `"Jira comment posted."`
+- Anything else → say `"Warning: Could not post Jira comment. You can add it manually."` — continue
+
+### Step 8b — Append implementation notes to the Jira ticket description
+
+Take the original description captured in Step 2 and append:
+
+```
+----
+*Implementation (added by Claude Code)*
+PR     : <PR_URL>
+Branch : <BRANCH_NAME>
+Files  : <COMMIT_FILES>
+What   : <COMMIT_WHAT>
+```
+
+Then PUT the updated description:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" -X PUT \
+  -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  "$JIRA_URL/rest/api/2/issue/<TICKET_ID>" \
+  -d "{\"fields\": {\"description\": \"<ESCAPED_UPDATED_DESCRIPTION>\"}}"
+```
+
+- HTTP 2xx → say `"Jira description updated."`
+- Anything else → say `"Warning: Could not update Jira description. You can update it manually."` — continue
+
+After both sub-steps display:
+```
+Jira updated ✓
+```
+
+---
+
 ## Error Handling
 
 | Situation | Action |
@@ -334,6 +385,8 @@ PR created successfully!
 | `gh pr create` fails | Try Node.js fallback. If that also fails, show error — stop |
 | Neither `gh` nor Node.js | `"Branch pushed. Create the PR manually at github.com/<GITHUB_REPO>/compare/<BRANCH_NAME>"` |
 | No files changed | `"No changes were needed for <TICKET_ID>."` — stop |
+| Jira comment POST fails | Warn and continue — non-fatal |
+| Jira description PUT fails | Warn and continue — non-fatal |
 
 Do NOT attempt to auto-fix errors. Report and stop.
 
@@ -391,6 +444,13 @@ Step 7 · git stash
       │
       ▼
   PR URL displayed ✓
+      │
+      ▼
+Step 8 · POST /comment → Jira ticket (PR link + summary)
+         PUT  /issue   → append implementation notes to description
+      │
+      ▼
+  Done ✓
 ```
 
 ---
