@@ -13,6 +13,13 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
+const clockEl = document.getElementById('digital-clock');
+function updateClock() {
+  if (clockEl) clockEl.textContent = new Date().toLocaleTimeString();
+}
+updateClock();
+setInterval(updateClock, 1000);
+
 function saveToHistory(text) {
   const history = JSON.parse(localStorage.getItem('taskHistory') || '[]');
   history.push({ text: text, timestamp: Date.now() });
