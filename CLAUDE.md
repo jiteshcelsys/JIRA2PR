@@ -114,7 +114,7 @@ Type     : <type> | Priority: <priority>
 
 ---
 
-## Step 3 — Analyse & propose a plan (developer approval required)
+## Step 3 — Analyse & show plan
 
 Read every file in `app/` using the **Read tool** — no edits yet.
 
@@ -122,7 +122,7 @@ Using the ticket summary and description, determine:
 - Which files need to change and why
 - Exactly what changes are needed in each file
 
-Present the plan:
+Display the plan, then **immediately proceed to Step 4** — no approval prompt here:
 ```
 Affected files:
 - app/app.js     — <reason>
@@ -134,13 +134,8 @@ Proposed changes:
 - <change 2>
 - <change 3>
 
-Proceed with these changes? [y/n]
+Implementing changes...
 ```
-
-- `y` → continue to Step 4
-- anything else → `"Cancelled. No files were modified."` — stop
-
-**Do NOT edit any file before the developer types `y`.**
 
 ---
 
@@ -227,6 +222,10 @@ Create PR? [y/n]
 
 ## Step 7 — Commit, push, and create PR
 
+**Before running any git command**, compose `COMMIT_WHAT`: a single sentence (max 15 words) that describes
+what was actually implemented, derived from the "Proposed changes" bullets approved in Step 3.
+Do NOT copy the Jira summary verbatim — describe the code change in plain English.
+
 Run in this exact sequence:
 
 ```bash
@@ -254,7 +253,21 @@ git stash pop
 
 # 5. Stage only app/, commit, push
 git add app/
-git commit -m "<TICKET_ID>: <summary>"
+
+# Claude writes COMMIT_WHAT from the approved plan — concise, unique per ticket
+# Example: "Added setInterval in app.js and CSS variables in style.css to cycle colours"
+COMMIT_TYPE="<feat|fix>"          # feat for non-Bug tickets, fix for Bug tickets
+COMMIT_TICKET="<TICKET_ID>"
+COMMIT_SUMMARY="<summary>"
+COMMIT_WHAT="<one-sentence description of what was implemented, from the approved plan>"
+COMMIT_FILES=$(git diff --cached --name-only | tr '\n' ',' | sed 's/,$//')
+
+git commit -m "[Claude] $COMMIT_TYPE($COMMIT_TICKET): $COMMIT_SUMMARY
+
+What  : $COMMIT_WHAT
+Files : $COMMIT_FILES
+Ticket: $COMMIT_TICKET | Author: Claude (claude-sonnet-4-6)"
+
 git push origin "<BRANCH_NAME>"
 ```
 
@@ -315,7 +328,6 @@ PR created successfully!
 |-----------|--------|
 | Jira 401 | Authentication failed message — stop |
 | Jira 404 | Ticket not found message — stop |
-| Developer rejects plan | `"Cancelled. No files were modified."` — stop |
 | Tests fail | `"Tests failed. No PR was created."` — stop |
 | `git stash pop` conflict | Show conflict output. Say `"Stash pop failed. Resolve conflicts in app/ manually."` — stop |
 | `git push` fails | Show git error. Say `"Push failed. Check GITHUB_TOKEN and repo permissions."` — stop |
@@ -334,7 +346,7 @@ Do NOT attempt to auto-fix errors. Report and stop.
 3. **Only stage `app/`** — never commit files outside the `app/` directory.
 4. **Never ask for credentials** — they live in `.env` and are loaded in Step 1.
 5. **Always run the safety check first** — before loading credentials or touching files.
-6. **Always show the analysis plan and get `y` approval** before editing any file.
+6. **Always show the analysis plan** before editing any file — but proceed automatically (no approval prompt at this step).
 7. **Never create a PR if tests fail** — tests are a hard gate.
 8. **Always `git stash` before switching branches** — protects Step 4 changes.
 9. **Reuse an existing branch** if its name already contains the ticket ID.
@@ -358,8 +370,8 @@ Step 1 · Load .env
 Step 2 · Fetch Jira → display ticket info
       │
       ▼
-Step 3 · Read app/ → analyse → propose plan → y/n
-      │ y                                    n → stop
+Step 3 · Read app/ → analyse → show plan → auto-proceed
+      │
       ▼
 Step 4 · Implement changes (Edit / Write)
       │
