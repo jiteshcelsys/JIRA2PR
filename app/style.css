@@ -196,6 +196,27 @@ footer p {
 	color: rgba(0, 0, 0, 0.4);
 }
 
+.toast {
+	position: fixed;
+	bottom: 2em;
+	left: 50%;
+	transform: translateX(-50%);
+	background: #4caf50;
+	color: white;
+	padding: .75em 1.5em;
+	border-radius: .3em;
+	font-size: .9em;
+	font-weight: 700;
+	opacity: 0;
+	transition: opacity 0.3s ease;
+	pointer-events: none;
+	z-index: 1000;
+}
+
+.toast.show {
+	opacity: 1;
+}
+
 @media (min-width: 768px) {
 
 	.app input {

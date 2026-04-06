@@ -61,6 +61,13 @@ if (historyBtn && historyPopup) {
 
 const taskInput = document.querySelector('input.task');
 const lists = document.querySelector('.lists');
+const toast = document.getElementById('toast');
+
+function showToast() {
+  if (!toast) return;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
 
 const favsSection = document.querySelector('.favs');
 const favTitle = document.querySelector('.favs h3');
@@ -94,6 +101,7 @@ taskInput.addEventListener('keyup', (e) => {
 
       tasksTitle.textContent = "Inbox";
       tasksSection.style.display = "";
+      showToast();
     }
   }
 });
