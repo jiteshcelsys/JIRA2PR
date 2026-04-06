@@ -325,7 +325,7 @@ PR created successfully!
 
 ## Step 8 — Write back to Jira
 
-Run both sub-steps after a successful PR creation. Failures are **non-fatal** — warn and continue.
+Run after a successful PR creation. Failures are **non-fatal** — warn and continue.
 
 ### Step 8a — Post a comment on the Jira ticket
 
@@ -340,33 +340,7 @@ curl -s -o /dev/null -w "%{http_code}" -X POST \
 - HTTP 2xx → say `"Jira comment posted."`
 - Anything else → say `"Warning: Could not post Jira comment. You can add it manually."` — continue
 
-### Step 8b — Append implementation notes to the Jira ticket description
-
-Take the original description captured in Step 2 and append:
-
-```
-----
-*Implementation (added by Claude Code)*
-PR     : <PR_URL>
-Branch : <BRANCH_NAME>
-Files  : <COMMIT_FILES>
-What   : <COMMIT_WHAT>
-```
-
-Then PUT the updated description:
-
-```bash
-curl -s -o /dev/null -w "%{http_code}" -X PUT \
-  -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  "$JIRA_URL/rest/api/2/issue/<TICKET_ID>" \
-  -d "{\"fields\": {\"description\": \"<ESCAPED_UPDATED_DESCRIPTION>\"}}"
-```
-
-- HTTP 2xx → say `"Jira description updated."`
-- Anything else → say `"Warning: Could not update Jira description. You can update it manually."` — continue
-
-After both sub-steps display:
+After posting the comment display:
 ```
 Jira updated ✓
 ```
@@ -386,7 +360,6 @@ Jira updated ✓
 | Neither `gh` nor Node.js | `"Branch pushed. Create the PR manually at github.com/<GITHUB_REPO>/compare/<BRANCH_NAME>"` |
 | No files changed | `"No changes were needed for <TICKET_ID>."` — stop |
 | Jira comment POST fails | Warn and continue — non-fatal |
-| Jira description PUT fails | Warn and continue — non-fatal |
 
 Do NOT attempt to auto-fix errors. Report and stop.
 
@@ -405,6 +378,7 @@ Do NOT attempt to auto-fix errors. Report and stop.
 9. **Reuse an existing branch** if its name already contains the ticket ID.
 10. **Default base branch to `main`** if `GITHUB_BASE_BRANCH` is unset.
 11. **Branch prefix = `bugfix/`** for Bug type; `feature/` for all other types.
+12. **Never modify the Jira ticket description** — only post comments via `POST /comment`; the `PUT /issue` description endpoint must never be called.
 
 ---
 
@@ -447,7 +421,6 @@ Step 7 · git stash
       │
       ▼
 Step 8 · POST /comment → Jira ticket (PR link + summary)
-         PUT  /issue   → append implementation notes to description
       │
       ▼
   Done ✓
