@@ -1,5 +1,23 @@
 "use strict";
 
+const rainbowGradients = [
+  'linear-gradient(135deg, red, orange)',
+  'linear-gradient(135deg, orange, yellow)',
+  'linear-gradient(135deg, yellow, green)',
+  'linear-gradient(135deg, green, blue)',
+  'linear-gradient(135deg, blue, indigo)',
+  'linear-gradient(135deg, indigo, violet)',
+  'linear-gradient(135deg, violet, red)',
+];
+
+let bgIndex = 0;
+document.body.style.background = rainbowGradients[bgIndex];
+
+setInterval(function () {
+  bgIndex = (bgIndex + 1) % rainbowGradients.length;
+  document.body.style.background = rainbowGradients[bgIndex];
+}, 5 * 60 * 1000);
+
 function saveToHistory(text) {
   const history = JSON.parse(localStorage.getItem('taskHistory') || '[]');
   history.push({ text: text, timestamp: Date.now() });
