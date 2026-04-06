@@ -59,6 +59,16 @@ if (historyBtn && historyPopup) {
   });
 }
 
+function showToast() {
+  const toast = document.getElementById('task-toast');
+  if (!toast) return;
+  toast.classList.remove('hidden');
+  clearTimeout(toast._hideTimer);
+  toast._hideTimer = setTimeout(function() {
+    toast.classList.add('hidden');
+  }, 2500);
+}
+
 const taskInput = document.querySelector('input.task');
 const lists = document.querySelector('.lists');
 const toast = document.getElementById('toast');
