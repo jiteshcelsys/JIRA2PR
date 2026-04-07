@@ -27,6 +27,23 @@ h3 {
 	margin: 0 auto;
 }
 
+.app-header {
+	text-align: center;
+	padding: 1em 0 .75em;
+	background: rgba(255, 255, 255, 0.2);
+	border-radius: .4em;
+	margin-top: 1.5em;
+}
+
+.app-header h1 {
+	margin: 0;
+	font-size: 1.8em;
+	font-weight: 700;
+	color: rgba(255, 255, 255, 0.95);
+	letter-spacing: .04em;
+	text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
 .app {
 	margin-top: 2em;
 	width: 100%;
