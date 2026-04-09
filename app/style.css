@@ -71,15 +71,11 @@ h3 {
 	outline: none;
 }
 
-.favs, .tasks, .favs ul li, .tasks ul li, .btns, footer {
+.tasks, .tasks ul li, .btns, footer {
 	display: flex;
 }
 
-.favs {
-	margin-bottom: 1em;
-}
-
-.favs, .tasks {
+.tasks {
 	margin-top: 1em;
 	flex-direction: column;
 	text-align: center;
@@ -104,13 +100,9 @@ ul li {
 	line-height: 1.5;
 }
 
-.favs ul li svg, .tasks ul li svg {
+.tasks ul li svg {
 	height: 36px;
 	margin-left: 1.2em;
-}
-
-.favs .fav {
-	fill: #FFD842;
 }
 
 .bin {
@@ -120,12 +112,6 @@ ul li {
 
 .cap {
 	transition: transform 0.2s;
-}
-
-.fav {
-	fill: lightgray;
-	transition: transform 0.2s, fill 0.5s;
-	transform: scale(0.75);
 }
 
 .history-container {
@@ -246,11 +232,11 @@ footer p {
 		height: 1.2em;
 	}
 
-	.favs, .tasks {
+	.tasks {
 		text-align: left;
 	}
 
-	.favs li, .tasks li {
+	.tasks li {
 		font-size: 1.25em;
 	}
 

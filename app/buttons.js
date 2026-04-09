@@ -6,25 +6,7 @@ function attachButton(li) {
 
   const xmlns = "http://www.w3.org/2000/svg";
   let boxWidth = 36;
-  let boxHeight = 36;
-
-  const favoriteButton = document.createElementNS(xmlns, "svg");
-  favoriteButton.setAttributeNS(null, "viewBox", "0 0" + " " + boxWidth + " "+ boxHeight);
-  favoriteButton.setAttributeNS(null, "width", boxWidth);
-  favoriteButton.setAttributeNS(null, "height", boxHeight);
-	favoriteButton.setAttributeNS(null, 'class', "fav");
-
-  favoriteButton.setAttributeNS(null, 'preserveAspectRatio', 'xMidYMid');
-  let favPath = document.createElementNS (xmlns, "path");
-
-  favPath.setAttributeNS (null, 'd', "M23 11L18 0l-5 11c-.4.5-1 1-1.6 1L0 13.8l8.3 8.4c.4.5.6 1.2.5 2L6.8 36 17 30.4l1-.3c.4 0 .7.4 1 .6L29 36l-1.8-12c0-.6 0-1.3.5-1.8l8.3-8.4L24.6 12c-.7 0-1.2-.5-1.5-1z");
-	favPath.setAttributeNS(null, 'class', "favPath");
-
-  favoriteButton.appendChild(favPath);
-  btns.appendChild(favoriteButton);
-
-	boxWidth = 36;
-	boxHeight = 24;
+  let boxHeight = 24;
 
   const deleteButton = document.createElementNS(xmlns, "svg");
   deleteButton.setAttributeNS(null, "viewBox", "0 0" + " " + boxWidth + " "+ boxHeight);

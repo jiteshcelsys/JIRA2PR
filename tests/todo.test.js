@@ -17,7 +17,6 @@ const HTML = `
     <div class="app">
       <input type="text" id="task" placeholder="Add Your Task Here" class="task">
       <div class="lists">
-        <section class="favs"><h3></h3><ul></ul></section>
         <section class="tasks"><h3></h3><ul></ul></section>
         <section class="done"><h3></h3><ul></ul></section>
       </div>
@@ -55,10 +54,6 @@ describe('Initial state', () => {
 
   test('tasks section is hidden when there are no tasks', () => {
     expect(q('.tasks').style.display).toBe('none');
-  });
-
-  test('favs section is hidden when there are no favourites', () => {
-    expect(q('.favs').style.display).toBe('none');
   });
 });
 
@@ -156,96 +151,6 @@ describe('Deleting a task (click on inner path element)', () => {
   });
 });
 
-// ─── Favouriting tasks ────────────────────────────────────────────────────────
-
-describe('Favouriting a task (click on SVG element)', () => {
-  beforeEach(() => {
-    setup();
-    addTask('Favourite this task');
-  });
-
-  test('clicking the fav SVG moves the task to the favourites list', () => {
-    q('.tasks ul li svg.fav').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(q('.favs ul').children.length).toBe(1);
-    expect(q('.tasks ul').children.length).toBe(0);
-  });
-
-  test('favs section becomes visible after favouriting', () => {
-    q('.tasks ul li svg.fav').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(q('.favs').style.display).not.toBe('none');
-  });
-
-  test('favs section heading is set to "Favorites"', () => {
-    q('.tasks ul li svg.fav').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(q('.favs h3').textContent).toBe('Favorites');
-  });
-
-  test('tasks section is hidden after the only task is favourited', () => {
-    q('.tasks ul li svg.fav').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(q('.tasks').style.display).toBe('none');
-  });
-});
-
-describe('Favouriting a task (click on inner path element)', () => {
-  beforeEach(() => {
-    setup();
-    addTask('Favourite via path');
-  });
-
-  test('clicking the favPath path moves the task to favourites', () => {
-    q('.tasks ul li path.favPath').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(q('.favs ul').children.length).toBe(1);
-    expect(q('.tasks ul').children.length).toBe(0);
-  });
-});
-
-// ─── Un-favouriting tasks ─────────────────────────────────────────────────────
-
-describe('Un-favouriting a task', () => {
-  beforeEach(() => {
-    setup();
-    addTask('Toggle me');
-    // Move to favourites first
-    q('.tasks ul li svg.fav').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-  });
-
-  test('clicking fav SVG on a favourite moves it back to the inbox', () => {
-    q('.favs ul li svg.fav').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(q('.tasks ul').children.length).toBe(1);
-    expect(q('.favs ul').children.length).toBe(0);
-  });
-
-  test('tasks section heading is restored to "Inbox" when un-favouriting', () => {
-    q('.favs ul li svg.fav').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(q('.tasks h3').textContent).toBe('Inbox');
-  });
-
-  test('favs section is hidden after the last favourite is removed', () => {
-    q('.favs ul li svg.fav').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(q('.favs').style.display).toBe('none');
-  });
-});
-
-// ─── Deleting from favourites ─────────────────────────────────────────────────
-
-describe('Deleting a task from the favourites section', () => {
-  beforeEach(() => {
-    setup();
-    addTask('Delete from favs');
-    q('.tasks ul li svg.fav').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-  });
-
-  test('clicking delete SVG in favs removes the task', () => {
-    q('.favs ul li svg.delete').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(q('.favs ul').children.length).toBe(0);
-  });
-
-  test('favs section is hidden after the last favourite is deleted', () => {
-    q('.favs ul li svg.delete').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(q('.favs').style.display).toBe('none');
-  });
-});
-
 // ─── attachButton (buttons.js) ────────────────────────────────────────────────
 
 describe('attachButton', () => {
@@ -254,11 +159,6 @@ describe('attachButton', () => {
   test('each task item has a .btns container', () => {
     addTask('Check buttons');
     expect(q('.tasks ul li .btns')).not.toBeNull();
-  });
-
-  test('each task item has a favourite SVG button', () => {
-    addTask('Check buttons');
-    expect(q('.tasks ul li svg.fav')).not.toBeNull();
   });
 
   test('each task item has a delete SVG button', () => {
