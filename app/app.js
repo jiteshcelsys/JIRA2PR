@@ -87,6 +87,16 @@ function showToast() {
   }, 2000);
 }
 
+function showDeleteToast() {
+  const toast = document.getElementById('delete-toast');
+  if (!toast) return;
+  toast.classList.remove('hidden');
+  clearTimeout(toast._hideTimer);
+  toast._hideTimer = setTimeout(function () {
+    toast.classList.add('hidden');
+  }, 2000);
+}
+
 const taskInput = document.querySelector('input.task');
 const lists = document.querySelector('.lists');
 
@@ -144,6 +154,7 @@ lists.addEventListener('click', (event) => {
         let ul = li.parentNode;
         saveToHistory(li.childNodes[0].textContent.trim());
         ul.removeChild(li);
+        showDeleteToast();
       } else if ( basevalue === 'fav') {
         let li = event.target.parentNode.parentNode;
         let ul = li.parentNode;
@@ -162,6 +173,7 @@ lists.addEventListener('click', (event) => {
         let ul = li.parentNode;
         saveToHistory(li.childNodes[0].textContent.trim());
         ul.removeChild(li);
+        showDeleteToast();
       } else if ( basevalue === 'favPath') {
         let li = event.target.parentNode.parentNode.parentNode;
         let ul = li.parentNode;
@@ -182,6 +194,7 @@ lists.addEventListener('click', (event) => {
         let li = event.target.parentNode.parentNode;
         let ul = li.parentNode;
         ul.removeChild(li);
+        showDeleteToast();
       } else if ( basevalue === 'fav') {
         let li = event.target.parentNode.parentNode;
         let ul = li.parentNode;
@@ -199,6 +212,7 @@ lists.addEventListener('click', (event) => {
         let li = event.target.parentNode.parentNode.parentNode.parentNode;
         let ul = li.parentNode;
         ul.removeChild(li);
+        showDeleteToast();
       } else if ( basevalue === 'favPath') {
         let li = event.target.parentNode.parentNode.parentNode;
         let ul = li.parentNode;

@@ -206,7 +206,7 @@ ul li {
 	transform: translateX(-50%);
 	background: #4caf50;
 	color: white;
-	padding: .6em 1.4em;
+	padding: 1.6em 1.4em;
 	border-radius: .3em;
 	font-size: .9em;
 	font-weight: 700;
@@ -219,6 +219,10 @@ ul li {
 .task-toast.hidden {
 	opacity: 0;
 	pointer-events: none;
+}
+
+.delete-toast {
+	background: tomato;
 }
 
 footer {
