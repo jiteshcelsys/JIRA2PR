@@ -77,11 +77,19 @@ if (historyBtn && historyPopup) {
   });
 }
 
-function showToast(message, type) {
+function showToast() {
   const toast = document.getElementById('task-toast');
   if (!toast) return;
-  toast.textContent = message || 'A Task has been Added';
-  toast.classList.toggle('delete', type === 'delete');
+  toast.classList.remove('hidden');
+  clearTimeout(toast._hideTimer);
+  toast._hideTimer = setTimeout(function () {
+    toast.classList.add('hidden');
+  }, 2000);
+}
+
+function showDeleteToast() {
+  const toast = document.getElementById('delete-toast');
+  if (!toast) return;
   toast.classList.remove('hidden');
   clearTimeout(toast._hideTimer);
   toast._hideTimer = setTimeout(function () {
@@ -124,7 +132,7 @@ taskInput.addEventListener('keyup', (e) => {
 
       tasksTitle.textContent = "Inbox";
       tasksSection.style.display = "";
-      showToast('A Task has been Added');
+      showToast();
     }
   }
 });
@@ -146,7 +154,7 @@ lists.addEventListener('click', (event) => {
         let ul = li.parentNode;
         saveToHistory(li.childNodes[0].textContent.trim());
         ul.removeChild(li);
-        showToast('The task has been deleted', 'delete');
+        showDeleteToast();
       } else if ( basevalue === 'fav') {
         let li = event.target.parentNode.parentNode;
         let ul = li.parentNode;
@@ -165,7 +173,7 @@ lists.addEventListener('click', (event) => {
         let ul = li.parentNode;
         saveToHistory(li.childNodes[0].textContent.trim());
         ul.removeChild(li);
-        showToast('The task has been deleted', 'delete');
+        showDeleteToast();
       } else if ( basevalue === 'favPath') {
         let li = event.target.parentNode.parentNode.parentNode;
         let ul = li.parentNode;
@@ -186,7 +194,7 @@ lists.addEventListener('click', (event) => {
         let li = event.target.parentNode.parentNode;
         let ul = li.parentNode;
         ul.removeChild(li);
-        showToast('The task has been deleted', 'delete');
+        showDeleteToast();
       } else if ( basevalue === 'fav') {
         let li = event.target.parentNode.parentNode;
         let ul = li.parentNode;
@@ -204,7 +212,7 @@ lists.addEventListener('click', (event) => {
         let li = event.target.parentNode.parentNode.parentNode.parentNode;
         let ul = li.parentNode;
         ul.removeChild(li);
-        showToast('The task has been deleted', 'delete');
+        showDeleteToast();
       } else if ( basevalue === 'favPath') {
         let li = event.target.parentNode.parentNode.parentNode;
         let ul = li.parentNode;

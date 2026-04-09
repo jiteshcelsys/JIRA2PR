@@ -204,8 +204,8 @@ ul li {
 	pointer-events: none;
 }
 
-.task-toast.delete {
-	background: rgb(211, 83, 14);
+.delete-toast {
+	background: tomato;
 }
 
 footer {
