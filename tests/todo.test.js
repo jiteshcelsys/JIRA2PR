@@ -55,6 +55,10 @@ describe('Initial state', () => {
   test('tasks section is hidden when there are no tasks', () => {
     expect(q('.tasks').style.display).toBe('none');
   });
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 });
 
 // ─── Adding tasks ─────────────────────────────────────────────────────────────
