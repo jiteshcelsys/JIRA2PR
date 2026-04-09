@@ -3,7 +3,7 @@
 const rainbowGradients = [
   'linear-gradient(135deg, red, orange)',
   'linear-gradient(135deg, orange, yellow)',
-  'linear-gradient(135deg, yellow, green)',
+  'linnear-gradient(135deg, yellow, green)',
   'linear-gradient(135deg, green, blue)',
   'linear-gradient(135deg, blue, indigo)',
   'linear-gradient(135deg, indigo, violet)',
