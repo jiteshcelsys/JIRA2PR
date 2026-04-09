@@ -244,12 +244,8 @@ footer p {
 		cursor: pointer;
 	}
 
-	.fav, .bin {
+	.bin {
 		transform: scale(0.85);
-	}
-
-	.fav:hover {
-		transform: scale(0.9);
 	}
 
 	.bin:hover .cap {
