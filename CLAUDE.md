@@ -7,6 +7,25 @@ These rules override all default Claude behaviour for this project.
 
 ---
 
+## Token Budget
+
+**This session is limited to 20,000 tokens.**
+
+Claude must track cumulative token usage throughout the session. After every pipeline step, estimate the total tokens used so far (input + output across all messages in this session).
+
+- **Below 20,000 tokens**: proceed normally without mentioning the budget.
+- **At or above 20,000 tokens**: display the warning below, then **automatically stop the session** — no developer input required:
+
+```
+⚠️  Token budget exceeded (20,000 tokens used this session).
+    The pipeline has been halted to prevent degraded output.
+    Resume by starting a new session and providing the ticket ID again.
+```
+
+**No further steps are executed once the 20k threshold is crossed. The session ends immediately.**
+
+---
+
 ## Greeting & Onboarding
 
 When the user opens a new session **without** a ticket ID in their first message
@@ -46,19 +65,19 @@ Before loading credentials or calling any API, scan the ticket summary and descr
 destructive intent. Keywords to watch: `remove`, `delete`, `drop`, `clear`, `wipe`, `reset`,
 `disable`, `replace` — when applied to existing features, files, or functionality.
 
-**If detected, stop and prompt:**
+**If detected, display the warning below and automatically stop — no developer input required:**
 ```
 ⚠️  This ticket appears to involve removing or significantly altering existing functionality.
     Ticket : <TICKET_ID>
     Summary: <summary>
 
-    Proceeding will make potentially irreversible changes to the app.
-    Are you sure you want to continue? [y/n]
+    Pipeline halted. To proceed anyway, re-run and prefix your message with CONFIRM:
+    Example: CONFIRM SCRUM-42
 ```
-- `y` → proceed to Step 1
-- `n` → say `"Operation cancelled. No changes were made."` and stop
 
-Do NOT read files, call APIs, or run commands until confirmed.
+**If the developer prefixes the ticket ID with `CONFIRM` (e.g. `CONFIRM SCRUM-42`), skip the safety check and proceed directly to Step 1.**
+
+Do NOT read files, call APIs, or run commands unless the message starts with `CONFIRM`.
 
 ---
 
@@ -171,7 +190,7 @@ Show complete output verbatim — do not truncate.
 
 | Result | Action |
 |--------|--------|
-| **Tests pass** | Say `"Tests complete. Review the results above before confirming the PR."` → continue to Step 6 |
+| **Tests pass** | Say `"Tests passed. Proceeding to PR creation."` → continue to Step 6 |
 | **Tests fail** | Say `"Tests failed. Fix the failures above before creating a PR. No PR was created."` → **stop** |
 | npm not found (exit 127) | Say `"npm not available — skipping tests."` → continue to Step 6 |
 
@@ -212,20 +231,37 @@ Show complete output verbatim — do not truncate.
 [<TICKET_ID>](<JIRA_URL>/browse/<TICKET_ID>)
 ```
 
-Show the proposed branch name and PR title, then ask:
-```
-Create PR? [y/n]
-```
-- `y` → continue to Step 7
-- anything else → `"Aborted. Your changes are still on disk in app/. To discard them run: git checkout app/"` — stop
+Show the proposed branch name and PR title, then **immediately proceed to Step 7** — no approval prompt here.
 
 ---
 
 ## Step 7 — Commit, push, and create PR
 
-**Before running any git command**, compose `COMMIT_WHAT`: a single sentence (max 15 words) that describes
-what was actually implemented, derived from the "Proposed changes" bullets approved in Step 3.
-Do NOT copy the Jira summary verbatim — describe the code change in plain English.
+**Before running any git command**, do the following:
+
+**A. Count prior Claude commits on this branch** (run after checking out the correct branch in step 3 below):
+
+```bash
+PRIOR_CLAUDE_COUNT=$(git log origin/"$BASE_BRANCH"..HEAD \
+  --author="Claude Code" \
+  --oneline 2>/dev/null | wc -l | tr -d ' ')
+PRIOR_WHAT_LINES=$(git log origin/"$BASE_BRANCH"..HEAD \
+  --author="Claude Code" \
+  --pretty=format:"%b" 2>/dev/null \
+  | grep "^What  :" \
+  | sed 's/^What  : //')
+COMMIT_SEQ_NUM=$((PRIOR_CLAUDE_COUNT + 1))
+COMMIT_SEQUENCE="v${COMMIT_SEQ_NUM}"
+```
+
+**B. Compose `COMMIT_WHAT`** using these rules:
+- `PRIOR_CLAUDE_COUNT` is **0**: write one sentence (max 15 words) describing what was implemented, from the Step 3 plan.
+- `PRIOR_CLAUDE_COUNT` is **1+**: write one sentence describing ONLY the incremental change — what is new vs. `PRIOR_WHAT_LINES`. Must NOT repeat or paraphrase anything already there.
+- Never copy the Jira summary verbatim. Describe the actual code change in plain English.
+
+**Correct v1/v2 example:**
+- v1: `"Added delete button listener and modal HTML to index.html and app.js"`
+- v2: `"Fixed modal not dismissing on outside click; added ESC key handler in app.js"`
 
 Run in this exact sequence:
 
@@ -255,15 +291,28 @@ git stash pop
 # 5. Stage only app/, commit, push
 git add app/
 
-# Claude writes COMMIT_WHAT from the approved plan — concise, unique per ticket
-# Example: "Added setInterval in app.js and CSS variables in style.css to cycle colours"
+# --- Commit sequence detection ---
+PRIOR_CLAUDE_COUNT=$(git log origin/"$BASE_BRANCH"..HEAD \
+  --author="Claude Code" \
+  --oneline 2>/dev/null | wc -l | tr -d ' ')
+PRIOR_WHAT_LINES=$(git log origin/"$BASE_BRANCH"..HEAD \
+  --author="Claude Code" \
+  --pretty=format:"%b" 2>/dev/null \
+  | grep "^What  :" \
+  | sed 's/^What  : //')
+COMMIT_SEQ_NUM=$((PRIOR_CLAUDE_COUNT + 1))
+COMMIT_SEQUENCE="v${COMMIT_SEQ_NUM}"
+
+# COMMIT_WHAT must describe only what is NEW in this commit vs. PRIOR_WHAT_LINES
 COMMIT_TYPE="<feat|fix>"          # feat for non-Bug tickets, fix for Bug tickets
 COMMIT_TICKET="<TICKET_ID>"
 COMMIT_SUMMARY="<summary>"
-COMMIT_WHAT="<one-sentence description of what was implemented, from the approved plan>"
+COMMIT_WHAT="<one-sentence description of what is NEW in this commit — not already in PRIOR_WHAT_LINES>"
 COMMIT_FILES=$(git diff --cached --name-only | tr '\n' ',' | sed 's/,$//')
 
-git commit -m "[Claude] $COMMIT_TYPE($COMMIT_TICKET): $COMMIT_SUMMARY
+git commit \
+  --author="Claude Code <claude-code@anthropic.com>" \
+  -m "[Claude] $COMMIT_TYPE($COMMIT_TICKET) $COMMIT_SEQUENCE: $COMMIT_SUMMARY
 
 What  : $COMMIT_WHAT
 Files : $COMMIT_FILES
@@ -379,6 +428,8 @@ Do NOT attempt to auto-fix errors. Report and stop.
 10. **Default base branch to `main`** if `GITHUB_BASE_BRANCH` is unset.
 11. **Branch prefix = `bugfix/`** for Bug type; `feature/` for all other types.
 12. **Never modify the Jira ticket description** — only post comments via `POST /comment`; the `PUT /issue` description endpoint must never be called.
+13. **Commit sequence**: Before every commit, count prior Claude commits on the branch with `git log --author="Claude Code"`. Set `COMMIT_SEQUENCE` to `v1`, `v2`, etc. The `COMMIT_WHAT` line must describe only what is new in the current commit — it must not repeat or paraphrase the `What` line from any prior Claude commit on the same branch.
+14. **Token budget is a hard stop**: If cumulative session tokens reach 20,000, display the budget warning and halt immediately — no prompt, no developer input required. The developer must start a new session.
 
 ---
 
@@ -388,7 +439,7 @@ Do NOT attempt to auto-fix errors. Report and stop.
 Ticket ID received
       │
       ▼
-Safety Check ──── destructive? ──► confirm y/n ──► n → stop
+Safety Check ── destructive? ── auto-halt (re-run with CONFIRM <ID> to override)
       │ clear
       ▼
 Step 1 · Load .env
@@ -406,8 +457,8 @@ Step 4 · Implement changes (Edit / Write)
 Step 5 · npm test
       │ pass                               fail → stop (no PR)
       ▼
-Step 6 · Generate branch + PR metadata → y/n
-      │ y                                    n → stop
+Step 6 · Generate branch + PR metadata → auto-proceed
+      │
       ▼
 Step 7 · git stash
          git checkout base + pull
@@ -424,6 +475,8 @@ Step 8 · POST /comment → Jira ticket (PR link + summary)
       │
       ▼
   Done ✓
+
+  [At any step: token usage ≥ 20k → auto-halt, start new session]
 ```
 
 ---
