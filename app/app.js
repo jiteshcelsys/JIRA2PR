@@ -149,7 +149,13 @@ lists.addEventListener('click', (event) => {
   // Checking if buttons inside tasks section is clicked=
   if ( clickArea1 === 'tasks' || clickArea2 === 'tasks' || clickArea3 === 'tasks' ) {
     if (tag === 'svg') {
-      if (basevalue  === 'delete' || basevalue  === 'can' || basevalue  === 'cap' || basevalue  === 'bin') {
+      if (basevalue === 'check') {
+        let li = event.target.parentNode.parentNode;
+        let ul = li.parentNode;
+        saveToHistory(li.childNodes[0].textContent.trim());
+        ul.removeChild(li);
+        showDeleteToast();
+      } else if (basevalue  === 'delete' || basevalue  === 'can' || basevalue  === 'cap' || basevalue  === 'bin') {
         let li = event.target.parentNode.parentNode;
         let ul = li.parentNode;
         saveToHistory(li.childNodes[0].textContent.trim());
@@ -168,7 +174,13 @@ lists.addEventListener('click', (event) => {
       };
 
     } else if (tag === 'path') {
-      if (basevalue  === 'delete' || basevalue  === 'can' || basevalue  === 'cap' || basevalue  === 'bin') {
+      if (basevalue === 'checkPath') {
+        let li = event.target.parentNode.parentNode.parentNode;
+        let ul = li.parentNode;
+        saveToHistory(li.childNodes[0].textContent.trim());
+        ul.removeChild(li);
+        showDeleteToast();
+      } else if (basevalue  === 'delete' || basevalue  === 'can' || basevalue  === 'cap' || basevalue  === 'bin') {
         let li = event.target.parentNode.parentNode.parentNode.parentNode;
         let ul = li.parentNode;
         saveToHistory(li.childNodes[0].textContent.trim());
@@ -190,7 +202,13 @@ lists.addEventListener('click', (event) => {
     // Checking if buttons inside favs section is clicked
   } else if ( clickArea1 === 'favs' || clickArea2 === 'favs' || clickArea3 === 'favs' ) {
     if (tag === 'svg') {
-      if (basevalue  === 'delete' || basevalue  === 'can' || basevalue  === 'cap' || basevalue  === 'bin') {
+      if (basevalue === 'check') {
+        let li = event.target.parentNode.parentNode;
+        let ul = li.parentNode;
+        saveToHistory(li.childNodes[0].textContent.trim());
+        ul.removeChild(li);
+        showDeleteToast();
+      } else if (basevalue  === 'delete' || basevalue  === 'can' || basevalue  === 'cap' || basevalue  === 'bin') {
         let li = event.target.parentNode.parentNode;
         let ul = li.parentNode;
         ul.removeChild(li);
@@ -208,7 +226,13 @@ lists.addEventListener('click', (event) => {
       };
 
     } else if (tag === 'path') {
-      if (basevalue  === 'delete' || basevalue  === 'can' || basevalue  === 'cap' || basevalue  === 'bin') {
+      if (basevalue === 'checkPath') {
+        let li = event.target.parentNode.parentNode.parentNode;
+        let ul = li.parentNode;
+        saveToHistory(li.childNodes[0].textContent.trim());
+        ul.removeChild(li);
+        showDeleteToast();
+      } else if (basevalue  === 'delete' || basevalue  === 'can' || basevalue  === 'cap' || basevalue  === 'bin') {
         let li = event.target.parentNode.parentNode.parentNode.parentNode;
         let ul = li.parentNode;
         ul.removeChild(li);

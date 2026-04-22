@@ -8,6 +8,18 @@ function attachButton(li) {
   let boxWidth = 36;
   let boxHeight = 36;
 
+  const checkButton = document.createElementNS(xmlns, "svg");
+  checkButton.setAttributeNS(null, "viewBox", "0 0 36 36");
+  checkButton.setAttributeNS(null, "width", boxWidth);
+  checkButton.setAttributeNS(null, "height", boxHeight);
+  checkButton.setAttributeNS(null, "class", "check");
+  checkButton.setAttributeNS(null, "preserveAspectRatio", "xMidYMid");
+  let checkPath = document.createElementNS(xmlns, "path");
+  checkPath.setAttributeNS(null, "d", "M18 2C9.163 2 2 9.163 2 18s7.163 16 16 16 16-7.163 16-16S26.837 2 18 2zm-2 23.414L8.293 17.707l1.414-1.414L16 22.586l10.293-10.293 1.414 1.414L16 25.414z");
+  checkPath.setAttributeNS(null, "class", "checkPath");
+  checkButton.appendChild(checkPath);
+  btns.appendChild(checkButton);
+
   const favoriteButton = document.createElementNS(xmlns, "svg");
   favoriteButton.setAttributeNS(null, "viewBox", "0 0" + " " + boxWidth + " "+ boxHeight);
   favoriteButton.setAttributeNS(null, "width", boxWidth);
