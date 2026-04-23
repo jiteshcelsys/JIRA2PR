@@ -25,6 +25,7 @@ h3 {
 .wrapper {
 	width: 90%;
 	margin: 0 auto;
+	padding-top: 3.5em;
 }
 
 .app-header {
