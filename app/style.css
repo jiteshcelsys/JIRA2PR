@@ -134,6 +134,12 @@ ul li {
 	transform: scale(0.75);
 }
 
+.complete {
+	fill: #4caf50;
+	transition: transform 0.2s, fill 0.3s;
+	transform: scale(0.75);
+}
+
 .history-container {
 	position: fixed;
 	top: 1em;
@@ -294,6 +300,11 @@ footer p {
 
 	.fav:hover {
 		transform: scale(0.9);
+	}
+
+	.complete:hover {
+		transform: scale(0.9);
+		fill: #388e3c;
 	}
 
 	.bin:hover .cap {
