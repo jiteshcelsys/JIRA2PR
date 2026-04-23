@@ -35,6 +35,19 @@ function attachButton(li) {
   favoriteButton.appendChild(favPath);
   btns.appendChild(favoriteButton);
 
+  const completeButton = document.createElementNS(xmlns, "svg");
+  completeButton.setAttributeNS(null, "viewBox", "0 0 36 36");
+  completeButton.setAttributeNS(null, "width", 36);
+  completeButton.setAttributeNS(null, "height", 36);
+  completeButton.setAttributeNS(null, "class", "complete");
+  completeButton.setAttributeNS(null, "preserveAspectRatio", "xMidYMid");
+
+  let completePath = document.createElementNS(xmlns, "path");
+  completePath.setAttributeNS(null, "class", "completePath");
+  completePath.setAttributeNS(null, "d", "M18 2C9.16 2 2 9.16 2 18s7.16 16 16 16 16-7.16 16-16S26.84 2 18 2zm-2 23.17L8.83 18l2.83-2.83L16 19.51l10.34-10.34 2.83 2.83L16 25.17z");
+  completeButton.appendChild(completePath);
+  btns.appendChild(completeButton);
+
 	boxWidth = 36;
 	boxHeight = 24;
 

@@ -231,6 +231,21 @@ ul li {
 	background: tomato;
 }
 
+.complete-toast {
+	background: #2196f3;
+}
+
+.complete {
+	fill: #4caf50;
+	transition: transform 0.2s, fill 0.3s;
+	transform: scale(0.75);
+}
+
+.complete:hover {
+	fill: #388e3c;
+	transform: scale(0.85);
+}
+
 footer {
 	flex-direction: column;
 	align-items: center;

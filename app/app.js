@@ -97,6 +97,16 @@ function showDeleteToast() {
   }, 2000);
 }
 
+function showCompleteToast() {
+  const toast = document.getElementById('complete-toast');
+  if (!toast) return;
+  toast.classList.remove('hidden');
+  clearTimeout(toast._hideTimer);
+  toast._hideTimer = setTimeout(function () {
+    toast.classList.add('hidden');
+  }, 2000);
+}
+
 const taskInput = document.querySelector('input.task');
 const lists = document.querySelector('.lists');
 
@@ -167,6 +177,12 @@ lists.addEventListener('click', (event) => {
         favsSection.style.display = '';
         favs.appendChild(li);
         favTitle.textContent = "Favorites";
+      } else if ( basevalue === 'complete') {
+        let li = event.target.parentNode.parentNode;
+        let ul = li.parentNode;
+        saveToHistory(li.childNodes[0].textContent.trim());
+        ul.removeChild(li);
+        showCompleteToast();
       }
 
       if ( taskItems.length === 0 ) {
@@ -192,6 +208,12 @@ lists.addEventListener('click', (event) => {
         favsSection.style.display = '';
         favs.appendChild(li);
         favTitle.textContent = "Favorites";
+      } else if ( basevalue === 'completePath') {
+        let li = event.target.parentNode.parentNode.parentNode;
+        let ul = li.parentNode;
+        saveToHistory(li.childNodes[0].textContent.trim());
+        ul.removeChild(li);
+        showCompleteToast();
       }
 
       if ( taskItems.length === 0 ) {
@@ -219,6 +241,12 @@ lists.addEventListener('click', (event) => {
         tasksSection.style.display = '';
         tasks.appendChild(li);
         tasksTitle.textContent = "Inbox";
+      } else if ( basevalue === 'complete') {
+        let li = event.target.parentNode.parentNode;
+        let ul = li.parentNode;
+        saveToHistory(li.childNodes[0].textContent.trim());
+        ul.removeChild(li);
+        showCompleteToast();
       }
 
       if ( favsItems.length === 0 ) {
@@ -243,6 +271,12 @@ lists.addEventListener('click', (event) => {
         tasksSection.style.display = '';
         tasks.appendChild(li);
         tasksTitle.textContent = "Inbox";
+      } else if ( basevalue === 'completePath') {
+        let li = event.target.parentNode.parentNode.parentNode;
+        let ul = li.parentNode;
+        saveToHistory(li.childNodes[0].textContent.trim());
+        ul.removeChild(li);
+        showCompleteToast();
       }
 
       if ( favsItems.length === 0 ) {
