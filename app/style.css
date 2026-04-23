@@ -114,6 +114,12 @@ ul li {
 	fill: #FFD842;
 }
 
+.check {
+	fill: #4caf50;
+	transform: scale(0.75);
+	transition: transform 0.2s, fill 0.2s;
+}
+
 .bin {
 	fill: tomato;
 	transform: scale(0.75);
@@ -126,6 +132,12 @@ ul li {
 .fav {
 	fill: lightgray;
 	transition: transform 0.2s, fill 0.5s;
+	transform: scale(0.75);
+}
+
+.complete {
+	fill: #4caf50;
+	transition: transform 0.2s, fill 0.3s;
 	transform: scale(0.75);
 }
 
@@ -226,6 +238,21 @@ ul li {
 	background: tomato;
 }
 
+.complete-toast {
+	background: #2196f3;
+}
+
+.complete {
+	fill: #4caf50;
+	transition: transform 0.2s, fill 0.3s;
+	transform: scale(0.75);
+}
+
+.complete:hover {
+	fill: #388e3c;
+	transform: scale(0.85);
+}
+
 footer {
 	flex-direction: column;
 	align-items: center;
@@ -263,12 +290,22 @@ footer p {
 		cursor: pointer;
 	}
 
-	.fav, .bin {
+	.check, .fav, .bin {
 		transform: scale(0.85);
+	}
+
+	.check:hover {
+		transform: scale(0.95);
+		fill: #388e3c;
 	}
 
 	.fav:hover {
 		transform: scale(0.9);
+	}
+
+	.complete:hover {
+		transform: scale(0.9);
+		fill: #388e3c;
 	}
 
 	.bin:hover .cap {
